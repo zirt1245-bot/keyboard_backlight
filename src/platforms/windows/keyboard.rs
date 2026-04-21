@@ -2,7 +2,7 @@
 ///
 /// All WMI command codes are reverse-engineered from LEDLib.dll
 /// (LED Manager for Clevo by rzrwolf).
-use crate::wmi::WmiConnection;
+use crate::platforms::windows::wmi::WmiConnection;
 use windows::core::Result;
 
 const R_RGB: u64 = 0xF000_0000; // -268435456 as i32

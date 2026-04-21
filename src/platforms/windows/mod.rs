@@ -1,8 +1,6 @@
 pub mod keyboard;
 pub mod wmi;
 
-pub use keyboard::KeyboardController;
-
 pub struct KeyboardController {
     controller: keyboard::KeyboardController,
 }
