@@ -21,7 +21,7 @@ impl KeyboardController {
     pub fn set_brightness(&self, level: &str) -> Result<(), String> {
         parse_brightness_linux(level)?;
 
-        let current = read_brightness(OFF_ON).parse::<u16>().unwrap_or(128);
+        read_brightness(OFF_ON).parse::<u16>().unwrap_or(128);
 
         let new_brightness = match level {
             s if s.ends_with('%') => {
@@ -31,11 +31,6 @@ impl KeyboardController {
                     .parse::<f32>()
                     .map_err(|_| "Invalid percentage")?;
                 ((percent / 100.0) * 255.0) as u16
-            }
-            s if s.starts_with('+') || s.starts_with('-') => {
-                // Относительное: +10, -20
-                let delta: i16 = s.parse().map_err(|_| "Invalid relative value")?;
-                ((current as i16 + delta).max(0).min(255)) as u16
             }
             s => {
                 // Абсолютное: 128

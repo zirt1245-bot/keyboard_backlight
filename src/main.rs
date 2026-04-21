@@ -28,7 +28,7 @@ struct Cli {
     #[arg(short, long)]
     color: Option<String>,
 
-    /// Brightness (Windows: 1-4, Linux: 0-255)
+    /// Brightness (Windows: 1-4, Linux: 0-255 or 0%-100%)
     #[arg(short, long)]
     brightness: Option<String>,
 }
