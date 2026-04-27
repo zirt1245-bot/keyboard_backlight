@@ -1,4 +1,4 @@
-pub mod raindow;
+pub mod rainbow;
 
 #[cfg(target_os = "windows")]
 pub mod windows;
@@ -16,6 +16,6 @@ pub trait _KeyboardBackend {
     fn set_color(&self, r: u8, g: u8, b: u8) -> Result<(), String>;
     fn set_power(&self, on: bool) -> Result<(), String>;
     fn set_brightness(&self, level: &str) -> Result<(), String>;
-    fn set_backgound(&self, on: bool) -> Result<(), String>;
+    fn set_background(&self, on: bool) -> Result<(), String>;
     fn set_stop(&self) -> Result<(), String>;
 }

@@ -34,12 +34,12 @@ impl KeyboardController {
         }
     }
 
-    pub fn set_backgound(&self, on: bool) -> Result<(), String> {
-        todo!()
+    pub fn set_background(&self, on: bool) -> Result<(), String> {
+        Err("not supported on this platform".to_string())
     }
 
-    pub fn set_stop(&self, on: bool) -> Result<(), String> {
-        todo!()
+    pub fn set_stop(&self) -> Result<(), String> {
+        Err("not supported on this platform".to_string())
     }
 }
 

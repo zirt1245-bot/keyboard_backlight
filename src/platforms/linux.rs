@@ -5,7 +5,7 @@ use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
-use crate::platforms::raindow::hsv_to_rgb;
+use crate::platforms::rainbow::hsv_to_rgb;
 
 pub const LED: &str =
     "/sys/devices/platform/tuxedo_keyboard/leds/rgb:kbd_backlight/multi_intensity";
@@ -50,7 +50,7 @@ impl KeyboardController {
             .map_err(|e| format!("Failed to set brightness: {}", e))
     }
 
-    pub fn set_backgound(&self, on: bool) -> Result<(), String> {
+    pub fn set_background(&self, on: bool) -> Result<(), String> {
         if !on {
             return self.stop_daemon();
         }

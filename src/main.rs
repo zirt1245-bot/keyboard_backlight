@@ -89,7 +89,7 @@ fn main() {
     }
 
     if cli.back_rainbow {
-        match kb.set_backgound(true) {
+        match kb.set_background(true) {
             Ok(ok) => ok,
             Err(e) => eprintln!("✗ Error setting color: {}", e),
         }
