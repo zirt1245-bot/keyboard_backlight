@@ -31,6 +31,14 @@ struct Cli {
     /// Brightness (Windows: 1-4, Linux: 0-255 or 0%-100%)
     #[arg(short, long)]
     brightness: Option<String>,
+
+    /// Backgound raindow (linux only)
+    #[arg(long)]
+    back_rainbow: bool,
+
+    /// Stop backgound effect
+    #[arg(long)]
+    stop: bool,
 }
 
 fn main() {
@@ -77,6 +85,20 @@ fn main() {
         match kb.set_brightness(&brightness_input) {
             Ok(ok) => ok,
             Err(e) => eprintln!("✗ Error: {}", e),
+        }
+    }
+
+    if cli.back_rainbow {
+        match kb.set_backgound(true) {
+            Ok(ok) => ok,
+            Err(e) => eprintln!("✗ Error setting color: {}", e),
+        }
+    }
+
+    if cli.stop {
+        match kb.set_stop() {
+            Ok(ok) => ok,
+            Err(e) => eprintln!("✗ Error stopping rainbow: {}", e),
         }
     }
 

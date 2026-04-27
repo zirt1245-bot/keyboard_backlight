@@ -33,6 +33,14 @@ impl KeyboardController {
             Err("Invalid brightness value".to_string())
         }
     }
+
+    pub fn set_backgound(&self, on: bool) -> Result<(), String> {
+        todo!()
+    }
+
+    pub fn set_stop(&self, on: bool) -> Result<(), String> {
+        todo!()
+    }
 }
 
 pub fn init_backend() -> Result<KeyboardController, String> {

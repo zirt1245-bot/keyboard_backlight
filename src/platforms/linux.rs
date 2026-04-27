@@ -1,9 +1,16 @@
+use nix::unistd::{fork, ForkResult};
 use std::fs;
 use std::path::Path;
+use std::process::Command;
+use std::thread::sleep;
+use std::time::Duration;
+
+use crate::platforms::raindow::hsv_to_rgb;
 
 pub const LED: &str =
     "/sys/devices/platform/tuxedo_keyboard/leds/rgb:kbd_backlight/multi_intensity";
 pub const OFF_ON: &str = "/sys/devices/platform/tuxedo_keyboard/leds/rgb:kbd_backlight/brightness";
+pub const PID_FILE: &str = "/tmp/backlight_background.pid";
 
 pub struct KeyboardController;
 
@@ -42,6 +49,76 @@ impl KeyboardController {
         fs::write(OFF_ON, final_brightness.to_string())
             .map_err(|e| format!("Failed to set brightness: {}", e))
     }
+
+    pub fn set_backgound(&self, on: bool) -> Result<(), String> {
+        if !on {
+            return self.stop_daemon();
+        }
+
+        if Path::new(PID_FILE).exists() {
+            let old_pid = fs::read_to_string(PID_FILE)
+                .ok()
+                .and_then(|p| p.trim().parse::<u32>().ok());
+
+            if let Some(pid) = old_pid {
+                let _ = Command::new("kill").arg("-0").arg(pid.to_string()).output();
+            }
+        }
+
+        match unsafe { fork() }.map_err(|_| "Fork failed".to_string())? {
+            ForkResult::Parent { child } => {
+                fs::write(PID_FILE, child.to_string())
+                    .map_err(|e| format!("Failed to write PID: {}", e))?;
+                Ok(())
+            }
+            ForkResult::Child => {
+                let mut hue = 0.0;
+                loop {
+                    let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
+                    let color_str = format!("{} {} {}", r, g, b);
+
+                    hue += 0.002;
+                    if hue > 1.0 {
+                        hue = 0.0;
+                    }
+
+                    if let Err(_) = fs::write(LED, &color_str) {
+                        break;
+                    }
+
+                    sleep(Duration::from_millis(16));
+                }
+                std::process::exit(0);
+            }
+        }
+    }
+
+    pub fn set_stop(&self) -> Result<(), String> {
+        self.stop_daemon()
+    }
+
+    fn stop_daemon(&self) -> Result<(), String> {
+        if !Path::new(PID_FILE).exists() {
+            return Err("No daemon running".to_string());
+        }
+
+        let pid = fs::read_to_string(PID_FILE)
+            .and_then(|p| {
+                p.trim()
+                    .parse::<u32>()
+                    .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Parse error"))
+            })
+            .map_err(|e| format!("Failed to read PID: {}", e))?;
+
+        Command::new("kill")
+            .arg(pid.to_string())
+            .output()
+            .map_err(|e| format!("Failed to kill daemon: {}", e))?;
+
+        fs::remove_file(PID_FILE).ok();
+        println!("✓ Rainbow daemon stopped");
+        Ok(())
+    }
 }
 
 pub fn init_backend() -> Result<KeyboardController, String> {
@@ -64,8 +141,6 @@ fn parse_brightness_linux(input: &str) -> Result<u8, String> {
             .parse::<f32>()
             .map_err(|_| "Invalid percentage")?;
         Ok(((percent / 100.0) * 255.0) as u8)
-    } else if input.starts_with('+') || input.starts_with('-') {
-        Ok(0)
     } else {
         input
             .parse::<u8>()
