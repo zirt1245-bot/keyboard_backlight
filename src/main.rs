@@ -32,7 +32,7 @@ struct Cli {
     #[arg(short, long)]
     brightness: Option<String>,
 
-    /// Backgound raindow (linux only)
+    /// Backgound raindow
     #[arg(long)]
     back_rainbow: bool,
 
