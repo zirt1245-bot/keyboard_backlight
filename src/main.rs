@@ -105,6 +105,7 @@ fn main() {
         }
     }
 
+    #[cfg(target_os = "windows")]
     if cli.internal_daemon {
         kb.run_service();
         return;
