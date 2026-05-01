@@ -5,6 +5,10 @@ use std::fs;
 use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
+
+use crate::platforms::rainbow::hsv_to_rgb;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const DETACHED_PROCESS: u32 = 0x00000008;
@@ -68,20 +72,38 @@ impl KeyboardController {
 
         let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
 
-        let mut child = Command::new(current_exe)
+        let child = Command::new(current_exe)
             .arg("--internal-daemon")
             .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|e| format!("Failed to spawn daemon: {}", e))?;
+            .map_err(|e| format!("Failed to spawn: {}", e))?;
 
         let pid = child.id();
         fs::write(&pid_file, pid.to_string()).map_err(|e| format!("Failed to write PID: {}", e))?;
 
         println!("✓ Rainbow daemon started (PID: {})", pid);
         Ok(())
+    }
+
+    pub fn run_service(&self) {
+        let mut hue = 0.0;
+        loop {
+            let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
+
+            if self.set_color(r, g, b).is_err() {
+                break;
+            }
+
+            hue += 0.002;
+            if hue > 1.0 {
+                hue = 0.0;
+            }
+
+            thread::sleep(Duration::from_millis(16));
+        }
     }
 
     pub fn set_stop(&self) -> Result<(), String> {

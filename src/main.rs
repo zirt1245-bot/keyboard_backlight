@@ -39,6 +39,9 @@ struct Cli {
     /// Stop backgound effect
     #[arg(long)]
     stop: bool,
+
+    #[arg(long, hide = true)]
+    internal_daemon: bool,
 }
 
 fn main() {
@@ -100,6 +103,11 @@ fn main() {
             Ok(ok) => ok,
             Err(e) => eprintln!("✗ Error stopping rainbow: {}", e),
         }
+    }
+
+    if cli.internal_daemon {
+        kb.run_service();
+        return;
     }
 
     println!("Done!");
