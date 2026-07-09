@@ -6,7 +6,8 @@ use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::thread;
-use std::time::Duration;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 use crate::platforms::rainbow::hsv_to_rgb;
 
@@ -57,14 +58,21 @@ impl KeyboardController {
         if !on {
             return self.stop_service();
         }
+        self.spawn_daemon(&[])
+    }
 
+    pub fn set_background_breath(&self, color_name: &str) -> Result<(), String> {
+        self.spawn_daemon(&["--back-breath".to_string(), color_name.to_string()])
+    }
+
+    fn spawn_daemon(&self, extra_args: &[String]) -> Result<(), String> {
         let pid_file = get_pid_file();
 
         if Path::new(&pid_file).exists() {
             if let Ok(pid_str) = fs::read_to_string(&pid_file) {
                 if let Ok(pid) = pid_str.trim().parse::<u32>() {
                     if is_process_running(pid) {
-                        return Err("Rainbow daemon already running".to_string());
+                        return Err("Daemon already running".to_string());
                     }
                 }
             }
@@ -74,6 +82,7 @@ impl KeyboardController {
 
         let child = Command::new(current_exe)
             .arg("--internal-daemon")
+            .args(extra_args)
             .creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -84,11 +93,32 @@ impl KeyboardController {
         let pid = child.id();
         fs::write(&pid_file, pid.to_string()).map_err(|e| format!("Failed to write PID: {}", e))?;
 
-        println!("✓ Rainbow daemon started (PID: {})", pid);
+        println!("✓ Daemon started (PID: {})", pid);
         Ok(())
     }
 
-    pub fn run_service(&self) {
+    pub fn run_breath(&self, base_r: u8, base_g: u8, base_b: u8) {
+        let start_time = Instant::now();
+
+        loop {
+            let elapsed = start_time.elapsed().as_secs_f32();
+
+            let phase = (f32::sin(elapsed * 2.0) + 1.0) / 2.0;
+
+            let r = (base_r as f32 * phase).round() as u8;
+            let g = (base_g as f32 * phase).round() as u8;
+            let b = (base_b as f32 * phase).round() as u8;
+
+            if let Err(e) = self.set_color(r, g, b) {
+                eprintln!("✗ Error in the 'breath' cycle: {}", e);
+                return;
+            }
+
+            sleep(Duration::from_millis(10));
+        }
+    }
+
+    pub fn run_rainbow(&self) {
         let mut hue = 0.0;
         loop {
             let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);

@@ -29,7 +29,7 @@ pub fn get_color_by_name(name: &str) -> (u8, u8, u8) {
 fn show_available_colors(unknown: &str) {
     eprintln!("❌ Unknown color: '{}'", unknown);
     println!(
-        "\n📋 Available colors:\n  {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n",
+        "\n Available colors:\n  {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n",
         "red".red(),
         "green".green(),
         "blue".blue(),

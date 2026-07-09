@@ -36,6 +36,10 @@ struct Cli {
     #[arg(long)]
     back_rainbow: bool,
 
+    /// Backgound breathing with your color: red, green, blue, etc (white by default and windows only)
+    #[arg(long, num_args = 0..=1, default_missing_value = "white")]
+    back_breath: Option<String>,
+
     /// Stop backgound effect
     #[arg(long)]
     stop: bool,
@@ -54,6 +58,18 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    #[cfg(target_os = "windows")]
+    if cli.internal_daemon {
+        match cli.back_breath {
+            Some(color_name) => {
+                let (r, g, b) = get_color_by_name(&color_name);
+                kb.run_breath(r, g, b);
+            }
+            None => kb.run_rainbow(),
+        }
+        return;
+    }
 
     if cli.off {
         match kb.set_power(false) {
@@ -98,17 +114,19 @@ fn main() {
         }
     }
 
+    #[cfg(target_os = "windows")]
+    if let Some(color_name) = cli.back_breath {
+        let _ = get_color_by_name(&color_name);
+        if let Err(e) = kb.set_background_breath(&color_name) {
+            eprintln!("✗ Error setting color: {}", e);
+        }
+    }
+
     if cli.stop {
         match kb.set_stop() {
             Ok(ok) => ok,
             Err(e) => eprintln!("✗ Error stopping rainbow: {}", e),
         }
-    }
-
-    #[cfg(target_os = "windows")]
-    if cli.internal_daemon {
-        kb.run_service();
-        return;
     }
 
     println!("Done!");
