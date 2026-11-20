@@ -62,15 +62,16 @@ impl KeyboardBackend for KeyboardController {
         self.spawn_daemon(&[])
     }
 
+    fn set_background_breath(&self, color_name: &str) -> Result<(), String> {
+        self.spawn_daemon(&["--back-breath".to_string(), color_name.to_string()])
+    }
+
     fn set_stop(&self) -> Result<(), String> {
         self.stop_service()
     }
 }
 
 impl KeyboardController {
-    pub fn set_background_breath(&self, color_name: &str) -> Result<(), String> {
-        self.spawn_daemon(&["--back-breath".to_string(), color_name.to_string()])
-    }
 
     fn spawn_daemon(&self, extra_args: &[String]) -> Result<(), String> {
         let pid_file = get_pid_file();

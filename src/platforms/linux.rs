@@ -104,7 +104,7 @@ impl KeyboardBackend for KeyboardController {
                         hue = 0.0;
                     }
 
-                    if let Err(_) = fs::write(LED, &color_str) {
+                    if fs::write(LED, &color_str).is_err() {
                         break;
                     }
 
@@ -117,6 +117,48 @@ impl KeyboardBackend for KeyboardController {
 
     fn set_stop(&self) -> Result<(), String> {
         self.stop_daemon()
+    }
+
+    fn set_background_breath(&self, color_name: &str) -> Result<(), String> {
+        let (r, g, b) = crate::name_color::get_color_by_name(color_name)
+            .map_err(|e| e.to_string())?;
+
+        // Проверяем, не запущен ли уже демон
+        if Path::new(PID_FILE).exists() {
+            if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
+                if let Ok(pid) = pid_str.trim().parse::<u32>() {
+                    if let Ok(output) =
+                        Command::new("kill").arg("-0").arg(pid.to_string()).output()
+                    {
+                        if output.status.success() {
+                            return Err("Background daemon already running".to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        match unsafe { fork() }.map_err(|_| "Fork failed".to_string())? {
+            ForkResult::Parent { child } => {
+                let mut pid_file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(PID_FILE)
+                    .map_err(|e| {
+                        format!(
+                            "Failed to create PID file (daemon may already be running): {}",
+                            e
+                        )
+                    })?;
+                writeln!(pid_file, "{}", child)
+                    .map_err(|e| format!("Failed to write PID: {}", e))?;
+                Ok(())
+            }
+            ForkResult::Child => {
+                let _ = setsid();
+                run_breath_daemon(r, g, b);
+            }
+        }
     }
 }
 
@@ -152,6 +194,26 @@ impl KeyboardController {
         println!("✓ Rainbow daemon stopped");
         Ok(())
     }
+}
+
+/// Фоновый демон дыхания: плавно меняет яркость базового цвета по синусу.
+fn run_breath_daemon(base_r: u8, base_g: u8, base_b: u8) -> ! {
+    let start_time = std::time::Instant::now();
+    loop {
+        let elapsed = start_time.elapsed().as_secs_f32();
+        let phase = (f32::sin(elapsed * 2.0) + 1.0) / 2.0;
+
+        let r = (base_r as f32 * phase).round() as u8;
+        let g = (base_g as f32 * phase).round() as u8;
+        let b = (base_b as f32 * phase).round() as u8;
+
+        if fs::write(LED, format!("{} {} {}", r, g, b)).is_err() {
+            break;
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    std::process::exit(0);
 }
 
 pub fn init_backend() -> Result<KeyboardController, String> {

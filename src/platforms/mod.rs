@@ -17,5 +17,6 @@ pub trait KeyboardBackend {
     fn set_power(&self, on: bool) -> Result<(), String>;
     fn set_brightness(&self, level: &str) -> Result<(), String>;
     fn set_background(&self, on: bool) -> Result<(), String>;
+    fn set_background_breath(&self, color_name: &str) -> Result<(), String>;
     fn set_stop(&self) -> Result<(), String>;
 }

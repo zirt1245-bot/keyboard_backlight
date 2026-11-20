@@ -75,12 +75,6 @@ fn main() {
         return;
     }
 
-    #[cfg(target_os = "linux")]
-    if cli.back_breath.is_some() {
-        eprintln!("✗ Error: --back-breath is only supported on Windows");
-        std::process::exit(1);
-    }
-
     if cli.off {
         if let Err(e) = kb.set_power(false) {
             eprintln!("✗ Error turning off: {}", e);
@@ -122,7 +116,6 @@ fn main() {
         }
     }
 
-    #[cfg(target_os = "windows")]
     if let Some(color_name) = cli.back_breath {
         match get_color_by_name(&color_name) {
             Ok(_) => {
