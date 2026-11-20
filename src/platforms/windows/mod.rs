@@ -72,7 +72,6 @@ impl KeyboardBackend for KeyboardController {
 }
 
 impl KeyboardController {
-
     fn spawn_daemon(&self, extra_args: &[String]) -> Result<(), String> {
         let pid_file = get_pid_file();
 

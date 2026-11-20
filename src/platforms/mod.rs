@@ -19,4 +19,5 @@ pub trait KeyboardBackend {
     fn set_background(&self, on: bool) -> Result<(), String>;
     fn set_background_breath(&self, color_name: &str) -> Result<(), String>;
     fn set_stop(&self) -> Result<(), String>;
+    fn random_color(&self) -> (u8, u8, u8);
 }

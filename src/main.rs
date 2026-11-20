@@ -29,6 +29,10 @@ struct Cli {
     #[arg(short, long)]
     color: Option<String>,
 
+    /// Random color (Linux only)
+    #[arg(short, long)]
+    random: bool,
+
     /// Brightness (Windows: 1-4, Linux: 0-255 or 0%-100%)
     #[arg(short, long)]
     brightness: Option<String>,
@@ -37,7 +41,7 @@ struct Cli {
     #[arg(long)]
     back_rainbow: bool,
 
-    /// Background breathing with your color: red, green, blue, etc (white by default, Windows only)
+    /// Background breathing with your color: red, green, blue, etc (white by default)
     #[arg(long, num_args = 0..=1, default_missing_value = "white")]
     back_breath: Option<String>,
 
@@ -101,6 +105,13 @@ fn main() {
                 }
             }
             Err(e) => eprintln!("✗ {}", e),
+        }
+    }
+
+    if cli.random {
+        let (r, g, b) = kb.random_color();
+        if let Err(e) = kb.set_color(r, g, b) {
+            eprintln!("✗ Error setting color: {}", e);
         }
     }
 

@@ -51,6 +51,30 @@ impl KeyboardBackend for KeyboardController {
             .map_err(|e| format!("Failed to set brightness: {}", e))
     }
 
+    fn random_color(&self) -> (u8, u8, u8) {
+        let choice = rand::random_range(0..17);
+        match choice {
+            0 => (255, 0, 0),
+            1 => (0, 255, 0),
+            2 => (0, 0, 255),
+            3 => (255, 255, 255),
+            4 => (255, 255, 0),
+            5 => (0, 255, 255),
+            6 => (255, 0, 255),
+            7 => (255, 128, 0),
+            8 => (255, 0, 127),
+            9 => (0, 128, 128),
+            10 => (127, 0, 255),
+            11 => (127, 255, 0),
+            12 => (255, 180, 50),
+            13 => (100, 100, 100),
+            14 => (128, 0, 255),
+            15 => (165, 42, 42),
+            16 => (173, 216, 230),
+            _ => unreachable!(),
+        }
+    }
+
     fn set_background(&self, on: bool) -> Result<(), String> {
         if !on {
             return self.stop_daemon();
@@ -61,8 +85,7 @@ impl KeyboardBackend for KeyboardController {
             if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
                 if let Ok(pid) = pid_str.trim().parse::<u32>() {
                     // kill -0 не посылает сигнал, только проверяет существование процесса
-                    if let Ok(output) =
-                        Command::new("kill").arg("-0").arg(pid.to_string()).output()
+                    if let Ok(output) = Command::new("kill").arg("-0").arg(pid.to_string()).output()
                     {
                         if output.status.success() {
                             return Err("Background daemon already running".to_string());
@@ -120,15 +143,14 @@ impl KeyboardBackend for KeyboardController {
     }
 
     fn set_background_breath(&self, color_name: &str) -> Result<(), String> {
-        let (r, g, b) = crate::name_color::get_color_by_name(color_name)
-            .map_err(|e| e.to_string())?;
+        let (r, g, b) =
+            crate::name_color::get_color_by_name(color_name).map_err(|e| e.to_string())?;
 
         // Проверяем, не запущен ли уже демон
         if Path::new(PID_FILE).exists() {
             if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
                 if let Ok(pid) = pid_str.trim().parse::<u32>() {
-                    if let Ok(output) =
-                        Command::new("kill").arg("-0").arg(pid.to_string()).output()
+                    if let Ok(output) = Command::new("kill").arg("-0").arg(pid.to_string()).output()
                     {
                         if output.status.success() {
                             return Err("Background daemon already running".to_string());
@@ -168,8 +190,8 @@ impl KeyboardController {
             return Err("No daemon running".to_string());
         }
 
-        let pid_str = fs::read_to_string(PID_FILE)
-            .map_err(|e| format!("Failed to read PID file: {}", e))?;
+        let pid_str =
+            fs::read_to_string(PID_FILE).map_err(|e| format!("Failed to read PID file: {}", e))?;
         let pid = pid_str
             .trim()
             .parse::<u32>()
@@ -191,7 +213,7 @@ impl KeyboardController {
             .map_err(|e| format!("Failed to kill daemon: {}", e))?;
 
         fs::remove_file(PID_FILE).ok();
-        println!("✓ Rainbow daemon stopped");
+        println!("✓ Daemon stopped");
         Ok(())
     }
 }
@@ -220,11 +242,9 @@ pub fn init_backend() -> Result<KeyboardController, String> {
     println!("Checking Tuxedo Driver...");
 
     if !Path::new(LED).exists() {
-        return Err(
-            "❌ Backlight control file not found.\n\
+        return Err("❌ Backlight control file not found.\n\
              Install Tuxedo Linux Driver or check if /sys paths are accessible"
-                .to_string(),
-        );
+            .to_string());
     }
 
     println!("Tuxedo Driver detected");
