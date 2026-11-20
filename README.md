@@ -17,8 +17,6 @@ Works on Tuxedo computers with the `tuxedo_keyboard` driver.
 
 The program writes directly to `/sys/devices/platform/tuxedo_keyboard/leds/rgb:kbd_backlight/`.
 
-Install the driver from your distro or [compile it yourself](https://github.com/tuxedocomputers/tuxedo-keyboard-driver).
-
 ## Windows
 
 Works on Clevo laptops through WMI. You need to run the program as Administrator.
@@ -45,23 +43,19 @@ keyboard_backlight --brightness 50%
 # Rainbow effect
 keyboard_backlight --back-rainbow
 
-# Breathing effect (Windows only in original, works on Linux too now)
+# Breathing effect
 keyboard_backlight --back-breath red
 
 # Stop effects
 keyboard_backlight --stop
 ```
 
-## Screenshot / Demo
-
-*(Add a screenshot if you want)*
-
 ## Driver info
 
 This tool talks to your keyboard's firmware. For Linux it uses the `tuxedo_keyboard` driver.
 For Windows it uses the `CLEVO_GET` WMI interface.
 
-The Windows driver source is available here:
+The Linux driver source is available here:
 https://github.com/wessel-novacustom/clevo-keyboard
 
 ## Build

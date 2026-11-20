@@ -69,6 +69,12 @@ impl KeyboardBackend for KeyboardController {
     fn set_stop(&self) -> Result<(), String> {
         self.stop_service()
     }
+
+    /// Random color — under development for Windows
+    fn random_color(&self) -> (u8, u8, u8) {
+        eprintln!("⚠️ Random color not yet implemented on Windows");
+        (255, 255, 255) // default white as placeholder
+    }
 }
 
 impl KeyboardController {
