@@ -1,11 +1,13 @@
-use nix::unistd::{fork, ForkResult};
-use std::fs;
+use nix::unistd::{fork, setsid, ForkResult};
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 use std::thread::sleep;
 use std::time::Duration;
 
 use crate::platforms::rainbow::hsv_to_rgb;
+use crate::platforms::KeyboardBackend;
 
 pub const LED: &str =
     "/sys/devices/platform/tuxedo_keyboard/leds/rgb:kbd_backlight/multi_intensity";
@@ -14,25 +16,24 @@ pub const PID_FILE: &str = "/tmp/backlight_background.pid";
 
 pub struct KeyboardController;
 
-impl KeyboardController {
-    pub fn set_color(&self, r: u8, g: u8, b: u8) -> Result<(), String> {
+impl KeyboardBackend for KeyboardController {
+    fn set_color(&self, r: u8, g: u8, b: u8) -> Result<(), String> {
         let color_str = format!("{} {} {}", r, g, b);
         fs::write(LED, &color_str).map_err(|e| format!("Failed to write color: {}", e))
     }
 
-    pub fn set_power(&self, on: bool) -> Result<(), String> {
+    fn set_power(&self, on: bool) -> Result<(), String> {
         let value = if on { "255" } else { "0" };
         fs::write(OFF_ON, value).map_err(|e| format!("Failed to set power: {}", e))
     }
 
-    pub fn set_brightness(&self, level: &str) -> Result<(), String> {
-        parse_brightness_linux(level)?;
-
-        read_brightness(OFF_ON).parse::<u16>().unwrap_or(128);
-
+    /// Установка яркости. На Tuxedo клавиатуре яркость и включение/выключение
+    /// пишут в один и тот же sysfs-файл (`brightness`), поэтому установка
+    /// ненулевой яркости автоматически включает подсветку.
+    fn set_brightness(&self, level: &str) -> Result<(), String> {
         let new_brightness = match level {
             s if s.ends_with('%') => {
-                // Процент: 50% → 127
+                // Процент: 50% → ~127
                 let percent = s
                     .trim_end_matches('%')
                     .parse::<f32>()
@@ -40,7 +41,7 @@ impl KeyboardController {
                 ((percent / 100.0) * 255.0) as u16
             }
             s => {
-                // Абсолютное: 128
+                // Абсолютное значение 0..=255
                 s.parse::<u16>().map_err(|_| "Invalid brightness value")?
             }
         };
@@ -50,35 +51,56 @@ impl KeyboardController {
             .map_err(|e| format!("Failed to set brightness: {}", e))
     }
 
-    pub fn set_background(&self, on: bool) -> Result<(), String> {
+    fn set_background(&self, on: bool) -> Result<(), String> {
         if !on {
             return self.stop_daemon();
         }
 
+        // Проверяем, не запущен ли уже демон
         if Path::new(PID_FILE).exists() {
-            let old_pid = fs::read_to_string(PID_FILE)
-                .ok()
-                .and_then(|p| p.trim().parse::<u32>().ok());
-
-            if let Some(pid) = old_pid {
-                let _ = Command::new("kill").arg("-0").arg(pid.to_string()).output();
+            if let Ok(pid_str) = fs::read_to_string(PID_FILE) {
+                if let Ok(pid) = pid_str.trim().parse::<u32>() {
+                    // kill -0 не посылает сигнал, только проверяет существование процесса
+                    if let Ok(output) =
+                        Command::new("kill").arg("-0").arg(pid.to_string()).output()
+                    {
+                        if output.status.success() {
+                            return Err("Background daemon already running".to_string());
+                        }
+                    }
+                }
             }
         }
 
         match unsafe { fork() }.map_err(|_| "Fork failed".to_string())? {
             ForkResult::Parent { child } => {
-                fs::write(PID_FILE, child.to_string())
+                // Создаём PID-файл эксклюзивно (защита от гонки)
+                let mut pid_file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(PID_FILE)
+                    .map_err(|e| {
+                        format!(
+                            "Failed to create PID file (daemon may already be running): {}",
+                            e
+                        )
+                    })?;
+                writeln!(pid_file, "{}", child)
                     .map_err(|e| format!("Failed to write PID: {}", e))?;
                 Ok(())
             }
             ForkResult::Child => {
+                // Отсоединяемся от управляющего терминала, чтобы демон не умирал
+                // при закрытии сессии и не hielt stdin/stdout родителя
+                let _ = setsid();
+
                 let mut hue = 0.0;
                 loop {
                     let (r, g, b) = hsv_to_rgb(hue, 1.0, 1.0);
                     let color_str = format!("{} {} {}", r, g, b);
 
                     hue += 0.002;
-                    if hue > 1.0 {
+                    if hue >= 1.0 {
                         hue = 0.0;
                     }
 
@@ -93,22 +115,33 @@ impl KeyboardController {
         }
     }
 
-    pub fn set_stop(&self) -> Result<(), String> {
+    fn set_stop(&self) -> Result<(), String> {
         self.stop_daemon()
     }
+}
 
+impl KeyboardController {
     fn stop_daemon(&self) -> Result<(), String> {
         if !Path::new(PID_FILE).exists() {
             return Err("No daemon running".to_string());
         }
 
-        let pid = fs::read_to_string(PID_FILE)
-            .and_then(|p| {
-                p.trim()
-                    .parse::<u32>()
-                    .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Parse error"))
-            })
-            .map_err(|e| format!("Failed to read PID: {}", e))?;
+        let pid_str = fs::read_to_string(PID_FILE)
+            .map_err(|e| format!("Failed to read PID file: {}", e))?;
+        let pid = pid_str
+            .trim()
+            .parse::<u32>()
+            .map_err(|_| "Invalid PID file".to_string())?;
+
+        // Проверяем, жив ли процесс, перед отправкой сигнала
+        let check = Command::new("kill").arg("-0").arg(pid.to_string()).output();
+        if let Ok(output) = check {
+            if !output.status.success() {
+                // Процесс уже мёртв — просто чистим PID-файл
+                let _ = fs::remove_file(PID_FILE);
+                return Err("No daemon running".to_string());
+            }
+        }
 
         Command::new("kill")
             .arg(pid.to_string())
@@ -125,29 +158,13 @@ pub fn init_backend() -> Result<KeyboardController, String> {
     println!("Checking Tuxedo Driver...");
 
     if !Path::new(LED).exists() {
-        return Err("❌ Backlight control file not found.\n\
+        return Err(
+            "❌ Backlight control file not found.\n\
              Install Tuxedo Linux Driver or check if /sys paths are accessible"
-            .to_string());
+                .to_string(),
+        );
     }
 
     println!("Tuxedo Driver detected");
     Ok(KeyboardController)
-}
-
-fn parse_brightness_linux(input: &str) -> Result<u8, String> {
-    if input.ends_with('%') {
-        let percent = input
-            .trim_end_matches('%')
-            .parse::<f32>()
-            .map_err(|_| "Invalid percentage")?;
-        Ok(((percent / 100.0) * 255.0) as u8)
-    } else {
-        input
-            .parse::<u8>()
-            .map_err(|_| "Invalid brightness value".to_string())
-    }
-}
-
-fn read_brightness(path: &str) -> String {
-    fs::read_to_string(path).unwrap_or_else(|_| "128".to_string())
 }

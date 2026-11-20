@@ -10,6 +10,7 @@ use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use crate::platforms::rainbow::hsv_to_rgb;
+use crate::platforms::KeyboardBackend;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const DETACHED_PROCESS: u32 = 0x00000008;
@@ -25,8 +26,8 @@ pub struct KeyboardController {
     controller: keyboard::KeyboardController,
 }
 
-impl KeyboardController {
-    pub fn set_color(&self, r: u8, g: u8, b: u8) -> Result<(), String> {
+impl KeyboardBackend for KeyboardController {
+    fn set_color(&self, r: u8, g: u8, b: u8) -> Result<(), String> {
         self.controller
             .set_color(keyboard::Rgb::R, r, g, b)
             .and_then(|_| self.controller.set_color(keyboard::Rgb::G, r, g, b))
@@ -34,13 +35,13 @@ impl KeyboardController {
             .map_err(|e| format!("{:?}", e))
     }
 
-    pub fn set_power(&self, on: bool) -> Result<(), String> {
+    fn set_power(&self, on: bool) -> Result<(), String> {
         self.controller
             .set_power(on)
             .map_err(|e| format!("{:?}", e))
     }
 
-    pub fn set_brightness(&self, level: &str) -> Result<(), String> {
+    fn set_brightness(&self, level: &str) -> Result<(), String> {
         if let Ok(num) = level.parse::<u8>() {
             if num >= 1 && num <= 4 {
                 self.controller
@@ -54,13 +55,19 @@ impl KeyboardController {
         }
     }
 
-    pub fn set_background(&self, on: bool) -> Result<(), String> {
+    fn set_background(&self, on: bool) -> Result<(), String> {
         if !on {
             return self.stop_service();
         }
         self.spawn_daemon(&[])
     }
 
+    fn set_stop(&self) -> Result<(), String> {
+        self.stop_service()
+    }
+}
+
+impl KeyboardController {
     pub fn set_background_breath(&self, color_name: &str) -> Result<(), String> {
         self.spawn_daemon(&["--back-breath".to_string(), color_name.to_string()])
     }
@@ -134,10 +141,6 @@ impl KeyboardController {
 
             thread::sleep(Duration::from_millis(16));
         }
-    }
-
-    pub fn set_stop(&self) -> Result<(), String> {
-        self.stop_service()
     }
 
     fn stop_service(&self) -> Result<(), String> {

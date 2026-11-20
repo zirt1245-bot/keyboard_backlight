@@ -1,33 +1,32 @@
 use colored::Colorize;
 
-pub fn get_color_by_name(name: &str) -> (u8, u8, u8) {
+pub fn get_color_by_name(name: &str) -> Result<(u8, u8, u8), String> {
     match name.to_lowercase().as_str() {
-        "red" => (255, 0, 0),
-        "green" => (0, 255, 0),
-        "blue" => (0, 0, 255),
-        "white" => (255, 255, 255),
-        "yellow" => (255, 255, 0),
-        "cyan" => (0, 255, 255),
-        "magenta" => (255, 0, 255),
-        "orange" => (255, 128, 0),
-        "pink" => (255, 0, 127),
-        "turquoise" => (0, 128, 128),
-        "violet" => (127, 0, 255),
-        "lime" => (127, 255, 0),
-        "golden" => (255, 180, 50),
-        "gray" | "grey" => (100, 100, 100),
-        "purple" => (128, 0, 255),
-        "brown" => (165, 42, 42),
-        "light_blue" => (173, 216, 230),
+        "red" => Ok((255, 0, 0)),
+        "green" => Ok((0, 255, 0)),
+        "blue" => Ok((0, 0, 255)),
+        "white" => Ok((255, 255, 255)),
+        "yellow" => Ok((255, 255, 0)),
+        "cyan" => Ok((0, 255, 255)),
+        "magenta" => Ok((255, 0, 255)),
+        "orange" => Ok((255, 128, 0)),
+        "pink" => Ok((255, 0, 127)),
+        "turquoise" => Ok((0, 128, 128)),
+        "violet" => Ok((127, 0, 255)),
+        "lime" => Ok((127, 255, 0)),
+        "golden" => Ok((255, 180, 50)),
+        "gray" | "grey" => Ok((100, 100, 100)),
+        "purple" => Ok((128, 0, 255)),
+        "brown" => Ok((165, 42, 42)),
+        "light_blue" => Ok((173, 216, 230)),
         _ => {
             show_available_colors(name);
-            (255, 255, 255)
+            Err(format!("Unknown color: '{}'", name))
         }
     }
 }
 
-fn show_available_colors(unknown: &str) {
-    eprintln!("❌ Unknown color: '{}'", unknown);
+fn show_available_colors(_unknown: &str) {
     println!(
         "\n Available colors:\n  {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}\n",
         "red".red(),
